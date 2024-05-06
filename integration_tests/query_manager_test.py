@@ -32,6 +32,6 @@ class TestDbPartitionsManager:
             "test",
         )
         result = await qm.run_query(
-            "SELECT * FROM metrics WHERE name = 'test_metric';", (), "test"
+            f"SELECT * FROM metrics WHERE name = %s;", ["test_metric"], "test"
         )
         assert len(result) >= 1

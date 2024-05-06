@@ -1,3 +1,4 @@
+from typing import Sequence
 from app.data_access import *
 from app.consistent_hashing import *
 from app.virtual_nodes_index import *
@@ -32,7 +33,7 @@ def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
     }
 
 
-async def run_query(query: str, parameters: tuple, partition_key: any) -> any:
+async def run_query(query: str, parameters: Sequence[any], partition_key: any) -> any:
     if not virtual_nodes_index:
         raise ValueError("Virtual nodes index is not configured")
 
