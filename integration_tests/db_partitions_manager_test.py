@@ -1,4 +1,4 @@
-from app.db_partitions_manager import *
+import app.db_partitions_manager
 
 
 class TestDbPartitionsManager:
@@ -15,5 +15,6 @@ class TestDbPartitionsManager:
             for port in ports
         ]
 
-        configure(db_configs)
-        assert len(range_to_db_config_mappings.keys()) == 1000
+        app.db_partitions_manager.configure(db_configs)
+        assert app.db_partitions_manager.virtual_nodes_index is not None
+        assert len(app.db_partitions_manager.range_to_db_config_mappings.keys()) == 1000

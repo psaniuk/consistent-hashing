@@ -17,7 +17,6 @@ async def main():
     ]
 
     configure(db_configs)
-    print(range_to_db_config_mappings)
     # partition_key = datetime.now()
     # print(":".join(str(partition_key).split(":")[:2]))
 
