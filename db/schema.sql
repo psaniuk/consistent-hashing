@@ -10,5 +10,5 @@ CREATE TABLE IF NOT EXISTS metrics (
 );
 
 CREATE USER 'user'@'%' IDENTIFIED BY 'pwd';
-
-GRANT ALL PRIVILEGES ON metrics_db.* TO 'user'@'%';
+GRANT SELECT,INSERT ON metrics_db.metrics TO 'user'@'%';
+GRANT PROCESS ON *.* TO 'user'@'%';

@@ -1,7 +1,9 @@
-from app.sql_query_executor import configure
+import asyncio
+from datetime import datetime
+from app.db_partitions_manager import *
 
 
-def main():
+async def main():
     ports = [3306, 3307, 3308]
     db_configs = [
         {
@@ -15,7 +17,24 @@ def main():
     ]
 
     configure(db_configs)
+    print(range_to_db_config_mappings)
+    # partition_key = datetime.now()
+    # print(":".join(str(partition_key).split(":")[:2]))
+
+    # await execute(
+    #     f"INSERT INTO metrics (name, value, timestamp) VALUES(%s, %s, %s);",
+    #     ("metric1", 100, datetime.now()),
+    #     partition_key,
+    # )
+
+    # print(
+    #     await execute(
+    #         f"SELECT * FROM metrics;",
+    #         (),
+    #         partition_key,
+    #     )
+    # )
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
