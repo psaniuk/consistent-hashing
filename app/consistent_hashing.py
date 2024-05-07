@@ -4,7 +4,7 @@ HASH_RING_MAX_VALUE = 2**128 - 1
 
 
 def get_range_size(number_of_virtual_nodes: int) -> int:
-    return HASH_RING_MAX_VALUE // number_of_virtual_nodes
+    return round(HASH_RING_MAX_VALUE / number_of_virtual_nodes)
 
 
 def map_virtual_nodes_to_ranges(

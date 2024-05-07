@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytest
 import app.query_manager as qm
+import random
 
 
 class TestDbPartitionsManager:
@@ -19,9 +20,9 @@ class TestDbPartitionsManager:
         ]
 
     def test_configure(self):
-        qm.configure(self.db_configs)
+        qm.configure(self.db_configs, 100000)
         assert qm.virtual_nodes_index is not None
-        assert len(qm.range_to_db_config_mappings.keys()) == 1000
+        assert len(qm.range_to_db_config_mappings.keys()) == 100000
 
     @pytest.mark.asyncio
     async def test_run_query(self):
@@ -35,3 +36,17 @@ class TestDbPartitionsManager:
             f"SELECT * FROM metrics WHERE name = %s;", ["test_metric"], "test"
         )
         assert len(result) >= 1
+
+    @pytest.mark.asyncio
+    async def test_bulk_insert(self):
+        qm.configure(self.db_configs, 100000)
+        for _ in range(10000):
+            partition_key = str(
+                datetime.now() - timedelta(seconds=random.randint(1, 10))
+            ).split(".")[0]
+            await qm.run_query(
+                f"INSERT INTO metrics (name, value, timestamp) VALUES(%s, %s, %s);",
+                ("test_metric", random.random(), datetime.now()),
+                partition_key,
+            )
+        assert True
