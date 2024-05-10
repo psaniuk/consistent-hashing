@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Sequence
 from app.data_access import *
 from app.consistent_hashing import *
-from app.timestamp import datetime_to_hh_mm_ss, round_time
+from app.timestamp import datetime_to_hh_mm_ss
 from app.virtual_nodes_index import *
 
 virtual_nodes_index = None
@@ -36,35 +36,33 @@ def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
 
 
 async def run_query(query: str, parameters: Sequence[any], partition_key: any) -> any:
-    if not virtual_nodes_index:
-        raise ValueError("Virtual nodes index is not configured")
-
-    if not range_to_db_config_mappings:
-        raise ValueError("Range to connection pool ID mappings are not configured")
-
-    range = search_range(partition_key)
-    db_config = get_db_config(range)
+    __validate_config()
+    range = __search_range(partition_key)
+    db_config = __map_to_db_config(range)
     return await execute_query(query, parameters, db_config)
 
 
-async def run_select(datetime_range: tuple[datetime, datetime]) -> any:
-    if not virtual_nodes_index:
-        raise ValueError("Virtual nodes index is not configured")
+async def insert(metric_name: str, value: float, timestamp: datetime) -> any:
+    __validate_config()
+    range = __search_range(__get_partition_key(timestamp))
+    db_config = __map_to_db_config(range)
+    query = "INSERT INTO metrics (name, value, timestamp) VALUES(%s, %s, %s);"
+    return await execute_query(query, (metric_name, value, timestamp), db_config)
 
-    if not range_to_db_config_mappings:
-        raise ValueError("Range to db config mappings are not configured")
+
+async def select(datetime_range: tuple[datetime, datetime]) -> any:
+    __validate_config()
 
     start_at, end_at = datetime_range
     distinct_ranges = set()
     while start_at < end_at:
-        partition_key = datetime_to_hh_mm_ss(start_at)
-        range = search_range(partition_key)
+        range = __search_range(__get_partition_key(start_at))
         distinct_ranges.add(range)
         start_at += timedelta(seconds=1)
 
     host_to_config_mappings = {}
     for range in distinct_ranges:
-        db_config = get_db_config(range)
+        db_config = __map_to_db_config(range)
         config_key = str(db_config["host"]) + str(db_config["port"])
         if config_key not in host_to_config_mappings:
             host_to_config_mappings[config_key] = db_config
@@ -76,17 +74,29 @@ async def run_select(datetime_range: tuple[datetime, datetime]) -> any:
     return result
 
 
-def get_db_config(range: tuple[int, int]) -> dict:
+def __map_to_db_config(range: tuple[int, int]) -> dict:
     if range not in range_to_db_config_mappings:
         raise ValueError(f"DB config not found for the given range: {range}")
 
     return range_to_db_config_mappings[range]
 
 
-def search_range(partition_key: any) -> tuple[int, int]:
+def __search_range(partition_key: any) -> tuple[int, int]:
     partition_key_hash = get_hash(partition_key)
     node = search(virtual_nodes_index, partition_key_hash)
     if not node:
         raise ValueError("Node not found for the given partition key")
 
     return node.value
+
+
+def __get_partition_key(timestamp: datetime) -> str:
+    return datetime_to_hh_mm_ss(timestamp)
+
+
+def __validate_config():
+    if not virtual_nodes_index:
+        raise ValueError("Virtual nodes index is not configured")
+
+    if not range_to_db_config_mappings:
+        raise ValueError("Range to db config mappings are not configured")
