@@ -79,12 +79,19 @@ async def select(datetime_range: tuple[datetime, datetime]) -> any:
     return result
 
 
+async def delete_all():
+    __validate_config()
+    for config in hash_key_to_db_config_mappings.values():
+        query = "DELETE FROM metrics;"
+        await execute_query(query, (), config)
+
+
 def __map_to_db_config(virtual_node_hash_key: int) -> dict:
     physical_node_hash_key = binary_tree.search(
         physical_nodes_index, virtual_node_hash_key
     )
     if not physical_node_hash_key:
-        # if the virtual node is not found in the binary tree, then search for the next closest node
+        # if the physical node is not found in the binary tree, then search for the next closest node
         physical_node_hash_key = binary_tree.search(physical_nodes_index, 0)
 
     return hash_key_to_db_config_mappings[physical_node_hash_key.value]

@@ -37,7 +37,8 @@ class TestDbPartitionsManager:
     @pytest.mark.asyncio
     async def test_bulk_insert(self):
         qm.configure(self.db_configs, 100000)
-        for _ in range(10000):
+        await qm.delete_all()
+        for _ in range(100):
             timestamp = datetime.now() - timedelta(seconds=random.randint(1, 100))
             await qm.insert("test_metric", random.random(), timestamp)
         assert True
@@ -45,6 +46,7 @@ class TestDbPartitionsManager:
     @pytest.mark.asyncio
     async def _test_select_5_mins_range(self):
         qm.configure(self.db_configs, 100000)
+        await qm.delete_all()
         timestamp_now = datetime.now()
         NUM_OF_RECORDS, METRIC_NAME = 5, "test_5_mins_range"
         for _ in range(NUM_OF_RECORDS):
@@ -53,4 +55,4 @@ class TestDbPartitionsManager:
 
         result = await qm.select((timestamp_now - timedelta(minutes=5), timestamp_now))
 
-        assert len(result) >= NUM_OF_RECORDS
+        assert len(result) == NUM_OF_RECORDS
