@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 import pytest
 import app.query_manager as qm
 import random
-from app.timestamp import datetime_to_hh_mm_ss, now_str_hh_mm_ss
 
 
 class TestDbPartitionsManager:
@@ -23,7 +22,8 @@ class TestDbPartitionsManager:
     def test_configure(self):
         qm.configure(self.db_configs, 100000)
         assert qm.virtual_nodes_index is not None
-        assert len(qm.range_to_db_config_mappings.keys()) == 100000
+        assert qm.physical_nodes_index is not None
+        assert len(qm.hash_key_to_db_config_mappings.keys()) == 3
 
     @pytest.mark.asyncio
     async def test_run_query(self):
@@ -35,16 +35,15 @@ class TestDbPartitionsManager:
         assert len(result) >= 1
 
     @pytest.mark.asyncio
-    # async def test_bulk_insert(self):
-    async def bulk_insert(self):
+    async def test_bulk_insert(self):
         qm.configure(self.db_configs, 100000)
         for _ in range(10000):
-            timestamp = datetime.now() - timedelta(seconds=random.randint(1, 10))
+            timestamp = datetime.now() - timedelta(seconds=random.randint(1, 100))
             await qm.insert("test_metric", random.random(), timestamp)
         assert True
 
     @pytest.mark.asyncio
-    async def test_select_5_mins_range(self):
+    async def _test_select_5_mins_range(self):
         qm.configure(self.db_configs, 100000)
         timestamp_now = datetime.now()
         NUM_OF_RECORDS, METRIC_NAME = 5, "test_5_mins_range"

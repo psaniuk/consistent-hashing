@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Sequence
 from app.data_access import *
-from app.consistent_hashing import *
+import app.consistent_hashing as consistent_hashing
 from app.timestamp import datetime_to_hh_mm_ss
-from app.virtual_nodes_index import *
+import app.binary_tree as binary_tree
+import uuid
 
-virtual_nodes_index = None
-range_to_db_config_mappings = {}
+virtual_nodes_index, physical_nodes_index = None, None
+hash_key_to_db_config_mappings = {}
 
 
 def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
@@ -16,36 +17,40 @@ def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
     if number_of_virtual_nodes <= 0:
         raise ValueError("Number of virtual nodes should be greater than 0")
 
+    range_size = consistent_hashing.get_range_size(number_of_virtual_nodes)
+    ranges = consistent_hashing.get_virtual_ranges(number_of_virtual_nodes, range_size)
+
     global virtual_nodes_index
-    virtual_nodes_index = build_virtual_nodes_index(
-        number_of_virtual_nodes,
-        get_range_size(number_of_virtual_nodes),
+    virtual_nodes_index = binary_tree.build(ranges)
+
+    mappings = list(
+        map(
+            lambda config: (
+                consistent_hashing.get_hash_key(uuid.uuid4()),
+                config,
+            ),
+            db_configs,
+        )
     )
 
-    configs = db_configs * number_of_virtual_nodes
+    global physical_nodes_index
+    physical_nodes_index = binary_tree.build([mapping[0] for mapping in mappings])
 
-    ranges = map_virtual_nodes_to_ranges(
-        number_of_virtual_nodes, get_range_size(number_of_virtual_nodes)
-    )
-
-    global range_to_db_config_mappings
-    range_to_db_config_mappings = {
-        key_range: db_node_config
-        for key_range, db_node_config in list(zip(ranges, configs[: len(ranges)]))
-    }
+    global hash_key_to_db_config_mappings
+    hash_key_to_db_config_mappings = {mapping[0]: mapping[1] for mapping in mappings}
 
 
 async def run_query(query: str, parameters: Sequence[any], partition_key: any) -> any:
     __validate_config()
-    range = __search_range(partition_key)
-    db_config = __map_to_db_config(range)
+    virtual_node = __search_virtual_node(partition_key)
+    db_config = __map_to_db_config(virtual_node)
     return await execute_query(query, parameters, db_config)
 
 
 async def insert(metric_name: str, value: float, timestamp: datetime) -> any:
     __validate_config()
-    range = __search_range(__get_partition_key(timestamp))
-    db_config = __map_to_db_config(range)
+    node_hash_key = __search_virtual_node(__get_partition_key(timestamp))
+    db_config = __map_to_db_config(node_hash_key)
     query = "INSERT INTO metrics (name, value, timestamp) VALUES(%s, %s, %s);"
     return await execute_query(query, (metric_name, value, timestamp), db_config)
 
@@ -56,7 +61,7 @@ async def select(datetime_range: tuple[datetime, datetime]) -> any:
     start_at, end_at = datetime_range
     distinct_ranges = set()
     while start_at < end_at:
-        range = __search_range(__get_partition_key(start_at))
+        range = __search_virtual_node(__get_partition_key(start_at))
         distinct_ranges.add(range)
         start_at += timedelta(seconds=1)
 
@@ -74,18 +79,22 @@ async def select(datetime_range: tuple[datetime, datetime]) -> any:
     return result
 
 
-def __map_to_db_config(range: tuple[int, int]) -> dict:
-    if range not in range_to_db_config_mappings:
-        raise ValueError(f"DB config not found for the given range: {range}")
+def __map_to_db_config(virtual_node_hash_key: int) -> dict:
+    physical_node_hash_key = binary_tree.search(
+        physical_nodes_index, virtual_node_hash_key
+    )
+    if not physical_node_hash_key:
+        # if the virtual node is not found in the binary tree, then search for the next closest node
+        physical_node_hash_key = binary_tree.search(physical_nodes_index, 0)
 
-    return range_to_db_config_mappings[range]
+    return hash_key_to_db_config_mappings[physical_node_hash_key.value]
 
 
-def __search_range(partition_key: any) -> tuple[int, int]:
-    partition_key_hash = get_hash(partition_key)
-    node = search(virtual_nodes_index, partition_key_hash)
+def __search_virtual_node(partition_key: any) -> int:
+    virtual_node_hash_key = consistent_hashing.get_hash_key(partition_key)
+    node = binary_tree.search(virtual_nodes_index, virtual_node_hash_key)
     if not node:
-        raise ValueError("Node not found for the given partition key")
+        raise ValueError("Virtual node not found for the given partition key")
 
     return node.value
 
@@ -98,5 +107,8 @@ def __validate_config():
     if not virtual_nodes_index:
         raise ValueError("Virtual nodes index is not configured")
 
-    if not range_to_db_config_mappings:
+    if not physical_nodes_index:
+        raise ValueError("Physical nodes index is not configured")
+
+    if not hash_key_to_db_config_mappings:
         raise ValueError("Range to db config mappings are not configured")
