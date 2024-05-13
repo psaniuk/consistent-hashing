@@ -28,11 +28,18 @@ class TestDbPartitionsManager:
     @pytest.mark.asyncio
     async def test_run_query(self):
         qm.configure(self.db_configs)
-        await qm.insert("test_metric", 100, datetime.now())
-        result = await qm.run_query(
-            f"SELECT * FROM metrics WHERE name = %s;", ["test_metric"], "test"
+        await qm.delete_all()
+
+        partition_key = "partition key"
+        await qm.run_query(
+            "INSERT INTO metrics (name, value, timestamp) VALUES (%s, %s, %s);",
+            ["test_metric", 1.0, partition_key],
         )
-        assert len(result) >= 1
+
+        result = await qm.run_query(
+            f"SELECT * FROM metrics WHERE name = %s;", ["test_metric"], partition_key
+        )
+        assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_bulk_insert(self):
