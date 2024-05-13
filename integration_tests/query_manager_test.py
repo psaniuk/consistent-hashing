@@ -46,7 +46,7 @@ class TestDbPartitionsManager:
     async def test_bulk_insert(self):
         qm.configure(self.db_configs, 100000)
         await qm.delete_all()
-        for _ in range(100):
+        for _ in range(10000):
             timestamp = datetime.now() - timedelta(seconds=random.randint(1, 100))
             await qm.insert("test_metric", random.random(), timestamp)
         assert True

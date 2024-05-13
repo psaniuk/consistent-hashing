@@ -26,7 +26,7 @@ def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
     mappings = list(
         map(
             lambda config: (
-                consistent_hashing.get_hash_key(__get_db_config_key(config)),
+                consistent_hashing.get_hash_key(uuid.uuid4()),
                 config,
             ),
             db_configs,
@@ -121,4 +121,4 @@ def __validate_config():
 
 
 def __get_db_config_key(config: dict) -> str:
-    return config["host"] + str(config["port"]) + config["database"]
+    return config["host"] + str(config["port"])
