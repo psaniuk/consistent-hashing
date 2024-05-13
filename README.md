@@ -13,10 +13,12 @@ This project provides a basic implementation of the consistent hashing algorithm
 - **Data Partitioning**: Data in the solution is partitioned based on a `timestamp`. 
 - **Even Key Distribution**: To achieve even key distribution among available nodes, the algorithm leverages virtual nodes. Virtual nodes enable finer-grained distribution of keys across the hash ring, improving load balancing and system stability.
 
-## Usage
+## How to run
+The usage of the algorithm is demonstrated through integration tests. These tests provide examples of how to initialize the consistent hashing algorithm and execute `insert` and/or `select` queries:
 
-## key takeaways:
-- leveraging consistent hashing decreases the amount of data to shift/move in case a db node removed/added
-- adding virtual nodes into hashing ring enhances data distribution
-- the efficient way to representing a hashing ring is a binary tree
-- when selecting by datetime range, a hash key should be calculated for every time period
+- ```cd consistent_hashing```
+- ```python3 -m venv env```
+- ```source env/bin/activate```
+- ```python3 -m pip install -r requirements.txt```
+- ```docker compose up```
+- ```pytest integration_tests/*```
