@@ -34,6 +34,7 @@ class TestDbPartitionsManager:
         await qm.run_query(
             "INSERT INTO metrics (name, value, timestamp) VALUES (%s, %s, %s);",
             ["test_metric", 1.0, partition_key],
+            partition_key,
         )
 
         result = await qm.run_query(
