@@ -20,5 +20,5 @@ The usage of the algorithm is demonstrated through integration tests. These test
 - ```python3 -m venv env```
 - ```source env/bin/activate```
 - ```python3 -m pip install -r requirements.txt```
-- ```docker compose up --build```, wait for DB to be created at every node, should be done after log message ` MySQL init process done. Ready for start up.`
+- ```docker compose up```, wait for DB to be created at every node, should be done after log message ` MySQL init process done. Ready for start up.`
 - ```pytest integration_tests/*```
