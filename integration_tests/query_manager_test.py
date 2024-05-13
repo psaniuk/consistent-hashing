@@ -33,7 +33,7 @@ class TestDbPartitionsManager:
         partition_key = "partition key"
         await qm.run_query(
             "INSERT INTO metrics (name, value, timestamp) VALUES (%s, %s, %s);",
-            ["test_metric", 1.0, partition_key],
+            ["test_metric", 1.0, datetime.now()],
             partition_key,
         )
 
