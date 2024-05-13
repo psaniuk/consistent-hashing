@@ -26,7 +26,7 @@ def configure(db_configs: list[dict], number_of_virtual_nodes: int = 1000):
     mappings = list(
         map(
             lambda config: (
-                consistent_hashing.get_hash_key(uuid.uuid4()),
+                consistent_hashing.get_hash_key(__get_db_config_key(config)),
                 config,
             ),
             db_configs,
@@ -68,7 +68,7 @@ async def select(datetime_range: tuple[datetime, datetime]) -> any:
     host_to_config_mappings = {}
     for range in distinct_ranges:
         db_config = __map_to_db_config(range)
-        config_key = str(db_config["host"]) + str(db_config["port"])
+        config_key = __get_db_config_key(db_config)
         if config_key not in host_to_config_mappings:
             host_to_config_mappings[config_key] = db_config
 
@@ -87,14 +87,13 @@ async def delete_all():
 
 
 def __map_to_db_config(virtual_node_hash_key: int) -> dict:
-    physical_node_hash_key = binary_tree.search(
-        physical_nodes_index, virtual_node_hash_key
-    )
-    if not physical_node_hash_key:
-        # if the physical node is not found in the binary tree, then search for the next closest node
-        physical_node_hash_key = binary_tree.search(physical_nodes_index, 0)
+    physical_node = binary_tree.search(physical_nodes_index, virtual_node_hash_key)
+    if not physical_node:
+        # if the physical node is not found in the binary tree (the value > the max range)
+        # then map the given value to the closest clockwise node
+        physical_node = binary_tree.search(physical_nodes_index, 0)
 
-    return hash_key_to_db_config_mappings[physical_node_hash_key.value]
+    return hash_key_to_db_config_mappings[physical_node.value]
 
 
 def __search_virtual_node(partition_key: any) -> int:
@@ -119,3 +118,7 @@ def __validate_config():
 
     if not hash_key_to_db_config_mappings:
         raise ValueError("Range to db config mappings are not configured")
+
+
+def __get_db_config_key(config: dict) -> str:
+    return config["host"] + str(config["port"]) + config["database"]
